@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AnalyzeResponse, NutritionValues } from "./types";
 
-export const ANALYZE_MODEL = "claude-sonnet-4-5";
+export const ANALYZE_MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 
 const SYSTEM_PROMPT = `Sei un esperto di nutrizione e dieta chetogenica. Il tuo compito è analizzare etichette nutrizionali italiane (per 100g) e restituire ESCLUSIVAMENTE un oggetto JSON valido (no markdown, no testo esplicativo, no code fence).
