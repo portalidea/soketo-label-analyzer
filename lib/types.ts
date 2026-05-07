@@ -7,7 +7,30 @@ export type SoketoCategory =
   | "bevande"
   | "altro";
 
-export type KetoLabel = "Keto Friendly" | "Con Moderazione" | "Non Keto";
+export type KetoLabel = "Keto Friendly" | "Keto OK" | "Con Moderazione" | "Non Keto";
+
+export type ProfileKey = "keto" | "lowCarb" | "diabetic" | "lowGI";
+
+export type ProfileScore = {
+  score: number;
+  label: string;
+  reason: string;
+};
+
+export type GlutenStatusValue = "compatibile" | "non_compatibile" | "da_verificare";
+
+export type GlutenStatus = {
+  status: GlutenStatusValue;
+  reason: string;
+};
+
+export type ProfilesAssessment = {
+  keto: ProfileScore;
+  lowCarb: ProfileScore;
+  glutenFree: GlutenStatus;
+  diabetic: ProfileScore;
+  lowGI: ProfileScore;
+};
 
 export type NutritionValues = {
   calories?: number;
@@ -32,9 +55,13 @@ export type AnalyzeResponse = {
   productName: string;
   per100g: NutritionValues;
   netCarbs: number;
+
+  profiles: ProfilesAssessment;
+
   ketoScore: number;
-  ketoLabel: KetoLabel;
+  ketoLabel: string;
   ketoReason: string;
+
   alerts: string[];
   positives: string[];
   soketoCategory: SoketoCategory;
