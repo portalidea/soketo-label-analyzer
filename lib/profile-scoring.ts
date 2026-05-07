@@ -1,4 +1,11 @@
-import type { KetoLabel, NutritionValues, SoketoCategory } from "./types";
+import type {
+  GlutenStatus,
+  GlutenStatusValue,
+  NutritionValues,
+  ProfileScore,
+  ProfilesAssessment,
+  SoketoCategory,
+} from "./types";
 
 export function computeNetCarbs(v: NutritionValues): number {
   const carbs = Number(v.carbs) || 0;
@@ -6,12 +13,11 @@ export function computeNetCarbs(v: NutritionValues): number {
   return Math.max(0, +(carbs - fiber).toFixed(1));
 }
 
-export function calculateKetoScore(v: NutritionValues): {
-  score: number;
-  label: KetoLabel;
-  reason: string;
-  netCarbs: number;
-} {
+function clamp(value: number, min = 0, max = 100): number {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+export function assessKeto(v: NutritionValues): ProfileScore {
   const netCarbs = computeNetCarbs(v);
   const sugars = Number(v.sugars) || 0;
   const protein = Number(v.protein) || 0;
@@ -24,23 +30,181 @@ export function calculateKetoScore(v: NutritionValues): {
   if (protein > 15) score += 5;
   if (fiber > 5) score += 3;
   if (fat > 15) score += 2;
+  score = clamp(score);
 
-  score = Math.max(0, Math.min(100, Math.round(score)));
+  const label =
+    score >= 90 ? "Keto Friendly"
+    : score >= 70 ? "Keto OK"
+    : score >= 45 ? "Con Moderazione"
+    : "Non Keto";
 
-  let label: KetoLabel;
-  let reason: string;
-  if (score >= 75) {
-    label = "Keto Friendly";
-    reason = `Ottimo profilo keto: ${netCarbs}g carb netti per 100g e bilancio macro favorevole.`;
-  } else if (score >= 45) {
-    label = "Con Moderazione";
-    reason = `Carboidrati moderati (${netCarbs}g netti per 100g): consumare in piccole porzioni.`;
-  } else {
-    label = "Non Keto";
-    reason = `Troppi carboidrati netti (${netCarbs}g per 100g) per la dieta chetogenica.`;
+  const reason =
+    score >= 70
+      ? `Profilo keto favorevole: ${netCarbs}g carb netti per 100g.`
+      : score >= 45
+        ? `Carb netti moderati (${netCarbs}g per 100g): consumare in piccole porzioni.`
+        : `Troppi carb netti (${netCarbs}g per 100g) per la dieta chetogenica.`;
+
+  return { score, label, reason };
+}
+
+export function assessLowCarb(v: NutritionValues): ProfileScore {
+  const netCarbs = computeNetCarbs(v);
+  const sugars = Number(v.sugars) || 0;
+
+  let score = 100;
+  if (netCarbs > 10) score -= (netCarbs - 10) * 3;
+  if (sugars > 10) score -= (sugars - 10) * 2;
+  score = clamp(score);
+
+  const label =
+    score >= 90 ? "Low-Carb Ottimo"
+    : score >= 70 ? "Low-Carb OK"
+    : score >= 45 ? "Carb Moderati"
+    : "Alto Contenuto Carb";
+
+  const reason =
+    score >= 70
+      ? `Adatto a una dieta low-carb (${netCarbs}g netti per 100g).`
+      : score >= 45
+        ? `Carb non eccessivi (${netCarbs}g netti per 100g): porzioni controllate.`
+        : `Carb troppo alti (${netCarbs}g netti per 100g) per low-carb.`;
+
+  return { score, label, reason };
+}
+
+export function assessGlutenFree(
+  _v: NutritionValues,
+  ingredients?: string,
+): GlutenStatus {
+  if (!ingredients || !ingredients.trim()) {
+    return {
+      status: "da_verificare",
+      reason: "Ingredienti non disponibili: verificare etichetta completa.",
+    };
   }
 
-  return { score, label, reason, netCarbs };
+  const text = ingredients.toLowerCase();
+  const blockers = [
+    "grano",
+    "frumento",
+    "glutine",
+    "orzo",
+    "segale",
+    "malto",
+    "semola",
+    "farro",
+    "spelta",
+    "couscous",
+    "bulgur",
+    "kamut",
+    "triticale",
+    "seitan",
+  ];
+  for (const word of blockers) {
+    if (text.includes(word)) {
+      return {
+        status: "non_compatibile",
+        reason: `Contiene ${word}: non adatto a celiaci.`,
+      };
+    }
+  }
+
+  if (
+    text.includes("senza glutine") ||
+    text.includes("gluten free") ||
+    text.includes("spiga sbarrata")
+  ) {
+    return {
+      status: "compatibile",
+      reason: "Etichetta dichiara prodotto senza glutine.",
+    };
+  }
+
+  const ambiguous = ["aroma", "spezie", "amido modificato", "sciroppo di malto"];
+  for (const a of ambiguous) {
+    if (text.includes(a)) {
+      return {
+        status: "da_verificare",
+        reason: `Ingredienti ambigui (${a}): consultare il produttore.`,
+      };
+    }
+  }
+
+  return {
+    status: "da_verificare",
+    reason: "Nessuna dichiarazione esplicita: verificare con il produttore.",
+  };
+}
+
+export function assessDiabetic(v: NutritionValues): ProfileScore {
+  const sugars = Number(v.sugars) || 0;
+  const fiber = Number(v.fiber) || 0;
+  const netCarbs = computeNetCarbs(v);
+
+  let score = 100;
+  if (sugars > 2) score -= (sugars - 2) * 4;
+  if (netCarbs > 20) score -= (netCarbs - 20) * 1;
+  if (fiber >= 5) score += 5;
+  else if (fiber < 2) score -= 5;
+  score = clamp(score);
+
+  const label =
+    score >= 90 ? "Adatto"
+    : score >= 70 ? "OK con moderazione"
+    : score >= 45 ? "Attenzione"
+    : "Sconsigliato";
+
+  const reason =
+    score >= 70
+      ? `Zuccheri ${sugars}g e fibre ${fiber}g per 100g: profilo equilibrato.`
+      : score >= 45
+        ? `Zuccheri ${sugars}g per 100g: consumare con moderazione.`
+        : "Zuccheri o carb troppo elevati: profilo glicemico sfavorevole.";
+
+  return { score, label, reason };
+}
+
+export function assessLowGI(v: NutritionValues): ProfileScore {
+  const netCarbs = computeNetCarbs(v);
+  const sugars = Number(v.sugars) || 0;
+  const fiber = Number(v.fiber) || 0;
+  const protein = Number(v.protein) || 0;
+
+  let score = 100;
+  if (netCarbs > 5) score -= (netCarbs - 5) * 3;
+  if (sugars > 2) score -= (sugars - 2) * 5;
+  if (fiber > 5) score += 5;
+  if (protein >= 15) score += 5;
+  score = clamp(score);
+
+  const label =
+    score >= 90 ? "IG Basso"
+    : score >= 70 ? "IG Moderato"
+    : score >= 45 ? "IG Medio-Alto"
+    : "IG Alto";
+
+  const reason =
+    score >= 70
+      ? "Bassa risposta glicemica stimata sui macro."
+      : score >= 45
+        ? "Risposta glicemica media: bilanciare con proteine o grassi."
+        : "Probabile spike glicemico: alta presenza di carb a rapido assorbimento.";
+
+  return { score, label, reason };
+}
+
+export function assessAllProfiles(
+  v: NutritionValues,
+  ingredients?: string,
+): ProfilesAssessment {
+  return {
+    keto: assessKeto(v),
+    lowCarb: assessLowCarb(v),
+    glutenFree: assessGlutenFree(v, ingredients),
+    diabetic: assessDiabetic(v),
+    lowGI: assessLowGI(v),
+  };
 }
 
 export function deriveAlerts(v: NutritionValues): string[] {
@@ -83,8 +247,7 @@ export function guessCategoryFromName(name: string | undefined): SoketoCategory 
 export function defaultSuggestion(category: SoketoCategory): string {
   const map: Record<SoketoCategory, string> = {
     pasta: "Prova la nostra Pasta SoKeto® — solo 2.8g di carboidrati netti per 100g.",
-    pane:
-      "Sostituiscilo con il Pane Tostato SoKeto®: stesso piacere, frazione dei carboidrati.",
+    pane: "Sostituiscilo con il Pane Tostato SoKeto®: stesso piacere, frazione dei carboidrati.",
     snack: "I Biscotti SoKeto® sono lo snack perfetto: zero zuccheri aggiunti.",
     spread: "La Crema Nocciole SoKeto® è low-carb e senza olio di palma.",
     farina: "La Farina SoKeto® ti permette di rifare in versione keto qualsiasi ricetta.",
@@ -94,22 +257,45 @@ export function defaultSuggestion(category: SoketoCategory): string {
   return map[category];
 }
 
+export type RuleBasedAnalysis = {
+  productName: string;
+  per100g: NutritionValues;
+  netCarbs: number;
+  profiles: ProfilesAssessment;
+  ketoScore: number;
+  ketoLabel: string;
+  ketoReason: string;
+  alerts: string[];
+  positives: string[];
+  soketoCategory: SoketoCategory;
+  soketoSuggestion: string;
+};
+
 export function ruleBasedAnalyze(
   values: NutritionValues,
   productName: string | undefined,
-) {
-  const { score, label, reason, netCarbs } = calculateKetoScore(values);
+  ingredients?: string,
+): RuleBasedAnalysis {
+  const netCarbs = computeNetCarbs(values);
+  const profiles = assessAllProfiles(values, ingredients);
   const category = guessCategoryFromName(productName);
   return {
     productName: productName?.trim() || "Prodotto sconosciuto",
     per100g: values,
     netCarbs,
-    ketoScore: score,
-    ketoLabel: label,
-    ketoReason: reason,
+    profiles,
+    ketoScore: profiles.keto.score,
+    ketoLabel: profiles.keto.label,
+    ketoReason: profiles.keto.reason,
     alerts: deriveAlerts(values),
     positives: derivePositives(values),
     soketoCategory: category,
     soketoSuggestion: defaultSuggestion(category),
   };
 }
+
+export const VALID_GLUTEN_STATUSES: GlutenStatusValue[] = [
+  "compatibile",
+  "non_compatibile",
+  "da_verificare",
+];
