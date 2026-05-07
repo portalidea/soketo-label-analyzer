@@ -92,6 +92,124 @@ In Fase 2 questo file sarà sostituito da una fetch verso Shopify Admin API o da
 
 L'endpoint `/api/analyze` ha `runtime = "nodejs"` e `maxDuration = 60` (Claude Vision può impiegare 5–15s su foto reali).
 
+## Integrazione App Nativa (iOS / Android)
+
+L'analyzer è progettato per essere caricato dentro una WebView nativa o un iframe in modalità **embedded**, che nasconde header/footer SoKeto e adatta il layout a riempire l'intera viewport.
+
+### URL da caricare
+
+```
+https://analyzer.ketovalley.it/?embedded=true&platform=ios&user_id=USER_ID&lang=it
+```
+
+### Parametri supportati (query string)
+
+| Parametro     | Valori                | Default | Descrizione                                                                      |
+| ------------- | --------------------- | ------- | -------------------------------------------------------------------------------- |
+| `embedded`    | `true` / assente      | `false` | Se `true` nasconde header e footer SoKeto e disattiva il vincolo `max-width`     |
+| `platform`    | `ios` / `android` / `web` | `null` | Informativo (per analytics)                                                     |
+| `user_id`     | string                | `null`  | ID utente da associare a lead/analisi (opzionale)                               |
+| `lang`        | `it` / `en` / `es`    | `it`    | Lingua interfaccia (al momento solo `it` è implementata)                        |
+| `theme`       | `light` / `dark`      | `light` | Tema (placeholder, dark non ancora implementato)                                |
+| `hide_cta`    | `true` / assente      | `false` | Nasconde il bottone "Scopri prodotti SoKeto" (l'app gestisce nativamente)      |
+| `hide_header` | `true` / assente      | implicit con `embedded=true` | Forza nascondere solo l'header                              |
+| `hide_footer` | `true` / assente      | implicit con `embedded=true` | Forza nascondere solo il footer                             |
+
+### Bridge `postMessage` — eventi inviati dall'analyzer
+
+In modalità embedded l'analyzer invia eventi al parent (iframe) e ai bridge nativi (iOS WKWebView e Android WebView):
+
+```typescript
+type BridgeEvent =
+  | { type: "analysis_completed"; productName: string; ketoScore: number; soketoCategory: string }
+  | { type: "soketo_cta_clicked"; productId: string | null; productUrl: string }
+  | { type: "lead_captured"; email: string }
+  | { type: "error"; message: string };
+```
+
+Su iOS l'evento arriva al `WKScriptMessageHandler` registrato come `soketoApp`. Su Android al `JavascriptInterface` esposto come `SoKetoApp` (riceve la stringa JSON serializzata). In iframe arriva come messaggio standard al `window.parent`.
+
+### Test rapido nel browser
+
+Apri [http://localhost:3000/embedded-test](http://localhost:3000/embedded-test) (o `analyzer.ketovalley.it/embedded-test` in produzione): mostra una simulazione con un header finto della "SoKeto App" e l'analyzer caricato in un iframe a fianco di un pannello che logga in tempo reale tutti gli eventi `postMessage` ricevuti.
+
+### Esempio Swift (iOS WKWebView)
+
+```swift
+import WebKit
+
+class AnalyzerViewController: UIViewController, WKScriptMessageHandler {
+    var webView: WKWebView!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(self, name: "soketoApp")
+        config.allowsInlineMediaPlayback = true
+
+        webView = WKWebView(frame: view.bounds, configuration: config)
+        view.addSubview(webView)
+
+        let userId = UserDefaults.standard.string(forKey: "user_id") ?? ""
+        let urlString = "https://analyzer.ketovalley.it/?embedded=true&platform=ios&user_id=\(userId)&lang=it"
+        webView.load(URLRequest(url: URL(string: urlString)!))
+    }
+
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        guard let dict = message.body as? [String: Any],
+              let type = dict["type"] as? String else { return }
+        switch type {
+        case "analysis_completed":
+            // Track analytics, save to local DB, etc.
+            break
+        case "soketo_cta_clicked":
+            if let url = dict["productUrl"] as? String {
+                // Apri prodotto in vista nativa SoKeto, non in browser esterno.
+            }
+        case "lead_captured":
+            // Sync con backend SoKeto.
+            break
+        default: break
+        }
+    }
+}
+```
+
+### Esempio Java (Android WebView)
+
+```java
+WebView webView = findViewById(R.id.webview);
+webView.getSettings().setJavaScriptEnabled(true);
+webView.getSettings().setDomStorageEnabled(true);
+webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+
+webView.addJavascriptInterface(new SoKetoBridge(this), "SoKetoApp");
+
+String userId = getSharedPreferences("user", MODE_PRIVATE).getString("user_id", "");
+webView.loadUrl(
+    "https://analyzer.ketovalley.it/?embedded=true&platform=android&user_id=" + userId + "&lang=it"
+);
+
+class SoKetoBridge {
+    Context context;
+    SoKetoBridge(Context c) { context = c; }
+
+    @JavascriptInterface
+    public void postMessage(String json) {
+        try {
+            JSONObject event = new JSONObject(json);
+            String type = event.getString("type");
+            // Smista lato main thread (es. con runOnUiThread).
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+}
+```
+
+### CSP / iframe
+
+`next.config.ts` imposta un header `Content-Security-Policy: frame-ancestors 'self' https://*.soketo.it https://*.ketovalley.it ionic: capacitor: file:` su tutte le route. Per consentire altri domini di embed (preview Vercel, staging, ecc.) aggiungili alla lista `FRAME_ANCESTORS`.
+
 ## Note Fase 2 (non implementato)
 
 - **Lead capture → GoHighLevel**: `/api/lead` è uno stub che logga in `console.log`. Per collegarlo, sostituire con un POST al webhook GHL (env `GHL_WEBHOOK_URL`) e inserire i tag rilevanti.
