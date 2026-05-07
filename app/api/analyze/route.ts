@@ -2,9 +2,21 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { analyzeManual, analyzePhoto } from "@/lib/anthropic";
-import { ruleBasedAnalyze, computeNetCarbs } from "@/lib/keto-scoring";
+import {
+  assessAllProfiles,
+  computeNetCarbs,
+  ruleBasedAnalyze,
+  VALID_GLUTEN_STATUSES,
+} from "@/lib/profile-scoring";
 import { findSoketoProduct } from "@/lib/soketo-products";
-import type { AnalyzeResponse, NutritionValues, SoketoCategory } from "@/lib/types";
+import type {
+  AnalyzeResponse,
+  GlutenStatus,
+  NutritionValues,
+  ProfileScore,
+  ProfilesAssessment,
+  SoketoCategory,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,7 +48,6 @@ const ManualRequestSchema = z.object({
 
 const RequestSchema = z.discriminatedUnion("mode", [PhotoRequestSchema, ManualRequestSchema]);
 
-const VALID_LABELS = ["Keto Friendly", "Con Moderazione", "Non Keto"] as const;
 const VALID_CATEGORIES: SoketoCategory[] = [
   "pasta",
   "pane",
@@ -78,7 +89,7 @@ export async function POST(req: Request) {
     usedFallback = true;
     if (input.mode === "manual") {
       result = sanitize(
-        { ...ruleBasedAnalyze(input.values, input.productName) } as AnalyzeResponse,
+        ruleBasedAnalyze(input.values, input.productName) as AnalyzeResponse,
         input,
       );
     } else {
@@ -134,14 +145,7 @@ function sanitize(
       ? Math.max(0, +result.netCarbs.toFixed(1))
       : computeNetCarbs(per100g);
 
-  const ketoScore = clamp(Math.round(numberOr(result.ketoScore, 0)), 0, 100);
-  const ketoLabel = (VALID_LABELS as readonly string[]).includes(result.ketoLabel)
-    ? result.ketoLabel
-    : ketoScore >= 75
-      ? "Keto Friendly"
-      : ketoScore >= 45
-        ? "Con Moderazione"
-        : "Non Keto";
+  const profiles = sanitizeProfiles(result.profiles, per100g);
 
   const soketoCategory: SoketoCategory = VALID_CATEGORIES.includes(
     result.soketoCategory as SoketoCategory,
@@ -153,14 +157,59 @@ function sanitize(
     productName: (result.productName || "Prodotto sconosciuto").slice(0, 120),
     per100g,
     netCarbs,
-    ketoScore,
-    ketoLabel,
-    ketoReason: (result.ketoReason || "").slice(0, 240),
+    profiles,
+    ketoScore: profiles.keto.score,
+    ketoLabel: profiles.keto.label,
+    ketoReason: profiles.keto.reason,
     alerts: Array.isArray(result.alerts) ? result.alerts.slice(0, 8) : [],
     positives: Array.isArray(result.positives) ? result.positives.slice(0, 8) : [],
     soketoCategory,
     soketoSuggestion: (result.soketoSuggestion || "").slice(0, 240),
   };
+}
+
+function sanitizeProfiles(
+  raw: unknown,
+  per100g: NutritionValues,
+): ProfilesAssessment {
+  const computed = assessAllProfiles(per100g);
+  const r = (raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {});
+
+  return {
+    keto: pickProfileScore(r.keto, computed.keto),
+    lowCarb: pickProfileScore(r.lowCarb, computed.lowCarb),
+    glutenFree: pickGlutenStatus(r.glutenFree, computed.glutenFree),
+    diabetic: pickProfileScore(r.diabetic, computed.diabetic),
+    lowGI: pickProfileScore(r.lowGI, computed.lowGI),
+  };
+}
+
+function pickProfileScore(raw: unknown, fallback: ProfileScore): ProfileScore {
+  if (!raw || typeof raw !== "object") return fallback;
+  const r = raw as Record<string, unknown>;
+  const score = clamp(Math.round(numberOr(r.score, fallback.score)), 0, 100);
+  const label =
+    typeof r.label === "string" && r.label.trim() ? r.label.slice(0, 60) : fallback.label;
+  const reason =
+    typeof r.reason === "string" && r.reason.trim()
+      ? r.reason.slice(0, 200)
+      : fallback.reason;
+  return { score, label, reason };
+}
+
+function pickGlutenStatus(raw: unknown, fallback: GlutenStatus): GlutenStatus {
+  if (!raw || typeof raw !== "object") return fallback;
+  const r = raw as Record<string, unknown>;
+  const status =
+    typeof r.status === "string" &&
+    (VALID_GLUTEN_STATUSES as readonly string[]).includes(r.status)
+      ? (r.status as GlutenStatus["status"])
+      : "da_verificare";
+  const reason =
+    typeof r.reason === "string" && r.reason.trim()
+      ? r.reason.slice(0, 200)
+      : fallback.reason;
+  return { status, reason };
 }
 
 function enrichWithSoketoMatch(result: AnalyzeResponse) {
