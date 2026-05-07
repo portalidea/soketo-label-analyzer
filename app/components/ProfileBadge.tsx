@@ -6,7 +6,7 @@ const SCORE_RED = "#EF4444";
 const NEUTRAL_GRAY = "#6B7280";
 
 function scoreColor(score: number): string {
-  if (score >= 75) return SCORE_LIME;
+  if (score >= 70) return SCORE_LIME;
   if (score >= 45) return SCORE_ORANGE;
   return SCORE_RED;
 }

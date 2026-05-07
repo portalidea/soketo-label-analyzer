@@ -4,7 +4,7 @@ type Props = {
 };
 
 function colorFor(score: number) {
-  if (score >= 75) return "var(--color-brand-lime)";
+  if (score >= 70) return "var(--color-brand-lime)";
   if (score >= 45) return "var(--color-brand-orange)";
   return "#DC2626";
 }

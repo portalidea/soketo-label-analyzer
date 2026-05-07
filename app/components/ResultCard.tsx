@@ -14,13 +14,13 @@ type Props = {
 };
 
 function topBorder(score: number) {
-  if (score >= 75) return "var(--color-brand-lime)";
+  if (score >= 70) return "var(--color-brand-lime)";
   if (score >= 45) return "var(--color-brand-orange)";
   return "#DC2626";
 }
 
 function badgeClass(score: number) {
-  if (score >= 75) return "bg-brand-lime/15 text-brand-green";
+  if (score >= 70) return "bg-brand-lime/15 text-brand-green";
   if (score >= 45) return "bg-brand-orange/15 text-orange-700";
   return "bg-red-100 text-red-700";
 }
