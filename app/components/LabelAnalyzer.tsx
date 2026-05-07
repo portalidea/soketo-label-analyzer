@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { AnalyzeResponse, NutritionValues } from "@/lib/types";
+import { postToNative } from "@/lib/native-bridge";
+import { useEmbedded } from "./hooks/useEmbedded";
 import ManualForm from "./ManualForm";
 import PhotoUpload from "./PhotoUpload";
 import ResultCard from "./ResultCard";
@@ -9,10 +11,30 @@ import ResultCard from "./ResultCard";
 type Tab = "photo" | "manual";
 
 export default function LabelAnalyzer() {
+  const { isEmbedded } = useEmbedded();
   const [tab, setTab] = useState<Tab>("photo");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+
+  function emitResult(data: AnalyzeResponse) {
+    setResult(data);
+    if (isEmbedded) {
+      postToNative({
+        type: "analysis_completed",
+        productName: data.productName,
+        ketoScore: data.ketoScore,
+        soketoCategory: data.soketoCategory,
+      });
+    }
+  }
+
+  function emitError(message: string) {
+    setError(message);
+    if (isEmbedded) {
+      postToNative({ type: "error", message });
+    }
+  }
 
   async function analyzePhoto(image: { data: string; mediaType: "image/jpeg" }) {
     setError(null);
@@ -31,9 +53,9 @@ export default function LabelAnalyzer() {
       if (!res.ok || "error" in data) {
         throw new Error(("error" in data && data.error) || "Errore di analisi.");
       }
-      setResult(data as AnalyzeResponse);
+      emitResult(data as AnalyzeResponse);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di rete.");
+      emitError(e instanceof Error ? e.message : "Errore di rete.");
     } finally {
       setLoading(false);
     }
@@ -52,9 +74,9 @@ export default function LabelAnalyzer() {
       if (!res.ok || "error" in data) {
         throw new Error(("error" in data && data.error) || "Errore di analisi.");
       }
-      setResult(data as AnalyzeResponse);
+      emitResult(data as AnalyzeResponse);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di rete.");
+      emitError(e instanceof Error ? e.message : "Errore di rete.");
     } finally {
       setLoading(false);
     }

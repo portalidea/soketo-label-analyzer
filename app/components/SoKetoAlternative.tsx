@@ -1,5 +1,9 @@
+"use client";
+
 import { findSoketoProduct } from "@/lib/soketo-products";
+import { postToNative } from "@/lib/native-bridge";
 import type { AnalyzeResponse } from "@/lib/types";
+import { useEmbedded } from "./hooks/useEmbedded";
 
 type Props = {
   result: AnalyzeResponse;
@@ -7,8 +11,21 @@ type Props = {
 };
 
 export default function SoKetoAlternative({ result, onCtaClick }: Props) {
+  const { isEmbedded, hideSoketoCTA } = useEmbedded();
   const product = findSoketoProduct(result.soketoCategory);
   const productUrl = product?.url ?? "https://soketo.it";
+
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    onCtaClick?.();
+    if (isEmbedded) {
+      e.preventDefault();
+      postToNative({
+        type: "soketo_cta_clicked",
+        productId: product?.id ?? null,
+        productUrl,
+      });
+    }
+  }
 
   return (
     <div className="rounded-2xl bg-gradient-to-br from-brand-green to-brand-green-dark p-5 text-white shadow-md">
@@ -19,16 +36,18 @@ export default function SoKetoAlternative({ result, onCtaClick }: Props) {
       <p className="mt-1 text-sm leading-snug text-white/90">
         {result.soketoSuggestion || product?.desc}
       </p>
-      <a
-        href={productUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onCtaClick}
-        className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-brand-orange px-5 py-3 text-sm font-bold uppercase tracking-wide text-white shadow transition active:scale-[.98]"
-      >
-        Scopri i Prodotti SoKeto<span className="ml-1 align-super text-[0.6em]">®</span>
-        <span className="ml-2">→</span>
-      </a>
+      {!hideSoketoCTA && (
+        <a
+          href={productUrl}
+          target={isEmbedded ? undefined : "_blank"}
+          rel="noopener noreferrer"
+          onClick={handleClick}
+          className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-brand-orange px-5 py-3 text-sm font-bold uppercase tracking-wide text-white shadow transition active:scale-[.98]"
+        >
+          Scopri i Prodotti SoKeto<span className="ml-1 align-super text-[0.6em]">®</span>
+          <span className="ml-2">→</span>
+        </a>
+      )}
     </div>
   );
 }

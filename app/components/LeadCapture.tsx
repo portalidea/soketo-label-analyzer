@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { postToNative } from "@/lib/native-bridge";
+import { useEmbedded } from "./hooks/useEmbedded";
 
 type Props = {
   open: boolean;
@@ -9,6 +11,7 @@ type Props = {
 };
 
 export default function LeadCapture({ open, onClose, source }: Props) {
+  const { isEmbedded } = useEmbedded();
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -29,6 +32,9 @@ export default function LeadCapture({ open, onClose, source }: Props) {
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || "Errore. Riprova.");
+      }
+      if (isEmbedded) {
+        postToNative({ type: "lead_captured", email });
       }
       setDone(true);
       setTimeout(onClose, 1500);
