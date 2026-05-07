@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { AnalyzeResponse } from "@/lib/types";
 import ScoreGauge from "./ScoreGauge";
 import NutrientBar from "./NutrientBar";
+import ProfilesGrid from "./ProfilesGrid";
 import SoKetoAlternative from "./SoKetoAlternative";
 import LeadCapture from "./LeadCapture";
 
@@ -82,6 +83,16 @@ export default function ResultCard({ result, onReset }: Props) {
           <ScoreGauge score={result.ketoScore} />
         </div>
       </div>
+
+      <section aria-labelledby="profiles-heading" className="space-y-2">
+        <h3
+          id="profiles-heading"
+          className="px-1 text-sm font-bold uppercase tracking-wider text-brand-gray"
+        >
+          📊 Compatibilità Profili
+        </h3>
+        <ProfilesGrid profiles={result.profiles} />
+      </section>
 
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-brand-gray">
