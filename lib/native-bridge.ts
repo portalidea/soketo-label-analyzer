@@ -1,10 +1,17 @@
-import type { SoketoCategory } from "./types";
+import type { GlutenStatusValue, SoketoCategory } from "./types";
 
 export type BridgeEvent =
   | {
       type: "analysis_completed";
       productName: string;
       ketoScore: number;
+      scores: {
+        keto: number;
+        lowCarb: number;
+        diabetic: number;
+        lowGI: number;
+      };
+      glutenStatus: GlutenStatusValue;
       soketoCategory: SoketoCategory;
     }
   | {

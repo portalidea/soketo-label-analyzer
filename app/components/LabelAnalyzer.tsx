@@ -23,7 +23,14 @@ export default function LabelAnalyzer() {
       postToNative({
         type: "analysis_completed",
         productName: data.productName,
-        ketoScore: data.ketoScore,
+        ketoScore: data.profiles.keto.score,
+        scores: {
+          keto: data.profiles.keto.score,
+          lowCarb: data.profiles.lowCarb.score,
+          diabetic: data.profiles.diabetic.score,
+          lowGI: data.profiles.lowGI.score,
+        },
+        glutenStatus: data.profiles.glutenFree.status,
         soketoCategory: data.soketoCategory,
       });
     }
