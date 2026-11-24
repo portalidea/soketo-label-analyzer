@@ -5,13 +5,20 @@ import { useRef, useState } from "react";
 type Props = {
   onSubmit: (image: { data: string; mediaType: "image/jpeg" }) => void;
   loading: boolean;
+  hint?: string;
+  submitLabel?: string;
 };
 
 const MAX_DIMENSION = 1200;
 const JPEG_QUALITY = 0.85;
 const ACCEPT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 
-export default function PhotoUpload({ onSubmit, loading }: Props) {
+export default function PhotoUpload({
+  onSubmit,
+  loading,
+  hint = "Inquadra l'etichetta nutrizionale",
+  submitLabel = "🔍 Analizza Etichetta",
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [base64, setBase64] = useState<string | null>(null);
@@ -68,7 +75,7 @@ export default function PhotoUpload({ onSubmit, loading }: Props) {
             {processing ? "Elaborazione…" : "Tocca per scattare o caricare"}
           </span>
           <span className="text-xs text-brand-gray">
-            Inquadra l&apos;etichetta nutrizionale
+            {hint}
           </span>
         </button>
       )}
@@ -76,7 +83,7 @@ export default function PhotoUpload({ onSubmit, loading }: Props) {
       {preview && (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="Anteprima etichetta" className="block w-full" />
+          <img src={preview} alt="Anteprima foto" className="block w-full" />
         </div>
       )}
 
@@ -105,7 +112,7 @@ export default function PhotoUpload({ onSubmit, loading }: Props) {
             disabled={loading || !base64}
             className="w-full rounded-full bg-brand-green px-5 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow transition active:scale-[.98] disabled:opacity-60"
           >
-            {loading ? "Analisi in corso…" : "🔍 Analizza Etichetta"}
+            {loading ? "Analisi in corso…" : submitLabel}
           </button>
           <button
             type="button"
