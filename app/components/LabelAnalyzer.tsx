@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { AnalyzeResponse, NutritionValues } from "@/lib/types";
 import { postToNative } from "@/lib/native-bridge";
 import { useEmbedded } from "./hooks/useEmbedded";
@@ -14,7 +15,10 @@ type Tab = "photo" | "meal" | "manual";
 
 export default function LabelAnalyzer() {
   const { isEmbedded } = useEmbedded();
-  const [tab, setTab] = useState<Tab>("photo");
+  // ?mode=piatto → strumento "Analizza piatto" (solo foto del piatto);
+  // senza parametro → lettore etichette (foto etichetta + dati manuali).
+  const mealOnly = useSearchParams().get("mode") === "piatto";
+  const [tab, setTab] = useState<Tab>(mealOnly ? "meal" : "photo");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
@@ -129,21 +133,20 @@ export default function LabelAnalyzer() {
 
   return (
     <div className="space-y-4">
+      {!mealOnly && (
       <div
         role="tablist"
         aria-label="Modalità di analisi"
-        className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-sm"
+        className="grid grid-cols-2 gap-1 rounded-full bg-white p-1 shadow-sm"
       >
         <TabButton active={tab === "photo"} onClick={() => setTab("photo")}>
-          📷 Etichetta
-        </TabButton>
-        <TabButton active={tab === "meal"} onClick={() => setTab("meal")}>
-          🍽️ Piatto
+          📷 Foto Etichetta
         </TabButton>
         <TabButton active={tab === "manual"} onClick={() => setTab("manual")}>
-          ✏️ Dati
+          ✏️ Inserisci Dati
         </TabButton>
       </div>
+      )}
 
       <div className="rounded-2xl bg-white/0 p-0 sm:bg-white sm:p-5 sm:shadow-sm">
         {tab === "photo" ? (
@@ -185,7 +188,7 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-full px-2 py-2.5 text-sm font-bold transition ${
+      className={`rounded-full px-4 py-2.5 text-sm font-bold transition ${
         active
           ? "bg-brand-green text-white shadow"
           : "bg-transparent text-brand-gray hover:text-brand-dark"
