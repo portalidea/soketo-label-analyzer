@@ -7,8 +7,10 @@ import { useEmbedded } from "./hooks/useEmbedded";
 import ManualForm from "./ManualForm";
 import PhotoUpload from "./PhotoUpload";
 import ResultCard from "./ResultCard";
+import MealResult from "./MealResult";
+import type { MealResponse } from "@/lib/meal-calc";
 
-type Tab = "photo" | "manual";
+type Tab = "photo" | "meal" | "manual";
 
 export default function LabelAnalyzer() {
   const { isEmbedded } = useEmbedded();
@@ -16,6 +18,28 @@ export default function LabelAnalyzer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [meal, setMeal] = useState<MealResponse | null>(null);
+
+  async function analyzeMeal(image: { data: string; mediaType: "image/jpeg" }) {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/meal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: image.data, mediaType: image.mediaType }),
+      });
+      const data = (await res.json()) as MealResponse | { error?: string };
+      if (!res.ok || "error" in data) {
+        throw new Error(("error" in data && data.error) || "Errore di analisi.");
+      }
+      setMeal(data as MealResponse);
+    } catch (e) {
+      emitError(e instanceof Error ? e.message : "Errore di rete.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function emitResult(data: AnalyzeResponse) {
     setResult(data);
@@ -91,7 +115,12 @@ export default function LabelAnalyzer() {
 
   function reset() {
     setResult(null);
+    setMeal(null);
     setError(null);
+  }
+
+  if (meal) {
+    return <MealResult result={meal} onReset={reset} />;
   }
 
   if (result) {
@@ -103,19 +132,30 @@ export default function LabelAnalyzer() {
       <div
         role="tablist"
         aria-label="Modalità di analisi"
-        className="grid grid-cols-2 gap-1 rounded-full bg-white p-1 shadow-sm"
+        className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-sm"
       >
         <TabButton active={tab === "photo"} onClick={() => setTab("photo")}>
-          📷 Foto Etichetta
+          📷 Etichetta
+        </TabButton>
+        <TabButton active={tab === "meal"} onClick={() => setTab("meal")}>
+          🍽️ Piatto
         </TabButton>
         <TabButton active={tab === "manual"} onClick={() => setTab("manual")}>
-          ✏️ Inserisci Dati
+          ✏️ Dati
         </TabButton>
       </div>
 
       <div className="rounded-2xl bg-white/0 p-0 sm:bg-white sm:p-5 sm:shadow-sm">
         {tab === "photo" ? (
           <PhotoUpload onSubmit={analyzePhoto} loading={loading} />
+        ) : tab === "meal" ? (
+          <PhotoUpload
+            key="meal"
+            onSubmit={analyzeMeal}
+            loading={loading}
+            hint="Fotografa il piatto dall'alto, tutto inquadrato"
+            submitLabel="🍽️ Analizza Piatto"
+          />
         ) : (
           <ManualForm onSubmit={analyzeManual} loading={loading} />
         )}
@@ -145,7 +185,7 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-full px-4 py-2.5 text-sm font-bold transition ${
+      className={`rounded-full px-2 py-2.5 text-sm font-bold transition ${
         active
           ? "bg-brand-green text-white shadow"
           : "bg-transparent text-brand-gray hover:text-brand-dark"
