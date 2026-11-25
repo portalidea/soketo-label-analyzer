@@ -24,11 +24,16 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Richiesta non valida" }, { status: 400 });
   }
+  const started = Date.now();
   try {
     const result = await analyzeMealPhoto(parsed.data);
+    console.log(`[/api/meal] ok in ${Date.now() - started} ms, ${result.items.length} items`);
     return NextResponse.json(result);
   } catch (err) {
-    console.error("[/api/meal] failed:", err instanceof Error ? err.message : err);
+    console.error(
+      `[/api/meal] failed after ${Date.now() - started} ms:`,
+      err instanceof Error ? err.message : err,
+    );
     const status = err instanceof Anthropic.APIError ? err.status ?? 502 : 500;
     return NextResponse.json(
       { error: "Impossibile analizzare il piatto. Riprova con una foto più nitida." },
