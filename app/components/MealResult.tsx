@@ -25,6 +25,13 @@ function applySwap(it: MealItem, s: SoketoSwap): MealItem {
   };
 }
 
+/** "Sono Spaghetti SoKeto?" / "È Pan Bauletto SoKeto?" */
+const SINGULAR = new Set(["riso", "pane", "piadina", "pizza", "panettone", "brioche", "crema"]);
+function swapQuestion(s: SoketoSwap | null): string {
+  if (!s) return "";
+  return `${SINGULAR.has(s.id) ? "È" : "Sono"} ${s.name}?`;
+}
+
 function undoSwap(it: MealItem): MealItem {
   if (!it.swap) return it;
   return { ...it, name: it.swap.originalName, per100g: it.swap.originalPer100g, swap: undefined };
@@ -249,7 +256,7 @@ export default function MealResult({
                           : "bg-brand-orange/15 text-orange-700"
                       }`}
                     >
-                      {it.swap ? `✓ SoKeto · torna a ${it.swap.originalName}` : "È SoKeto? Tocca qui"}
+                      {it.swap ? `✓ SoKeto · torna a ${it.swap.originalName}` : swapQuestion(findSoketoSwap(it.name))}
                     </button>
                   )}
                 </div>
