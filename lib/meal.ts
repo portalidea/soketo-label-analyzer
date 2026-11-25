@@ -17,12 +17,14 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido (niente markdown, niente testo
 {
   "dishName": "string, nome del piatto in italiano",
   "items": [
-    { "name": "string", "grams": number, "per100g": { "calories": number, "carbs": number, "fiber": number, "protein": number, "fat": number } }
+    { "name": "string", "grams": number, "x": number, "y": number, "per100g": { "calories": number, "carbs": number, "fiber": number, "protein": number, "fat": number } }
   ],
   "notes": ["string, max 3 note brevi su incertezze o ingredienti nascosti"],
   "ketoTip": "string, max 160 caratteri: un consiglio pratico per rendere il pasto più keto (es. sostituire pasta/pane con un'alternativa low carb)",
   "confidence": "alta" | "media" | "bassa"
 }
+
+x e y = posizione approssimativa del CENTRO di quell'alimento nella foto, in percentuale (0-100) di larghezza e altezza, misurata dall'angolo in alto a sinistra. Per i condimenti non visibili usa la posizione del cibo che condiscono.
 
 Regole:
 - carbs = carboidrati totali, fiber = fibre, entrambi in grammi per 100 g.
@@ -107,6 +109,8 @@ export function sanitizeMeal(raw: unknown): MealResponse {
       return {
         name: String(i.name ?? "").slice(0, 80) || "Alimento",
         grams: Math.round(num(i.grams, 0, 2000)),
+        x: i.x === undefined ? undefined : Math.round(num(i.x, 3, 97)),
+        y: i.y === undefined ? undefined : Math.round(num(i.y, 3, 97)),
         per100g: {
           calories: num(p.calories, 0, 900),
           carbs,

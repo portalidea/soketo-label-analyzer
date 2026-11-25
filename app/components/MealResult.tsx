@@ -5,6 +5,7 @@ import { mealKetoVerdict, mealTotals, type MealItem, type MealResponse } from "@
 
 type Props = {
   result: MealResponse;
+  photo?: string | null;
   onReset: () => void;
 };
 
@@ -20,7 +21,7 @@ const toneBorder = {
   bad: "#DC2626",
 } as const;
 
-export default function MealResult({ result, onReset }: Props) {
+export default function MealResult({ result, photo, onReset }: Props) {
   // L'utente può correggere i grammi: i totali si ricalcolano subito.
   const [items, setItems] = useState<MealItem[]>(result.items);
   const totals = useMemo(() => mealTotals(items), [items]);
@@ -45,8 +46,37 @@ export default function MealResult({ result, onReset }: Props) {
     );
   }
 
+  const placed = items
+    .map((it, idx) => ({ it, idx }))
+    .filter(({ it }) => typeof it.x === "number" && typeof it.y === "number" && it.grams > 0);
+
   return (
     <div className="space-y-4 animate-fade-in">
+      {photo && (
+        <div className="relative overflow-hidden rounded-2xl bg-black shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt={result.dishName} className="block w-full opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
+          {placed.map(({ it, idx }, n) => {
+            const net = Math.max(0, it.per100g.carbs - it.per100g.fiber) * (it.grams / 100);
+            const kcal = Math.round(it.per100g.calories * (it.grams / 100));
+            const left = Math.min(85, Math.max(15, it.x ?? 50));
+            return (
+              <div
+                key={`tag-${idx}`}
+                className="pop-in absolute flex flex-col items-center"
+                style={{ left: `${left}%`, top: `${it.y}%`, animationDelay: `${n * 0.15}s` }}
+              >
+                <span className="whitespace-nowrap rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-brand-green shadow-md ring-2 ring-brand-lime">
+                  {Math.round(net * 10) / 10} g carb · {kcal} kcal
+                </span>
+                <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-brand-lime ring-2 ring-white shadow" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div
         className="rounded-2xl bg-white p-5 shadow-sm"
         style={{ borderTop: `4px solid ${toneBorder[verdict.tone]}` }}

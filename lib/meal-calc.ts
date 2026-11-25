@@ -4,6 +4,9 @@
 export type MealItem = {
   name: string;
   grams: number;
+  /** Posizione approssimativa nella foto (% da sinistra / dall'alto), per le etichette sopra il cibo. */
+  x?: number;
+  y?: number;
   per100g: {
     calories: number;
     carbs: number;
