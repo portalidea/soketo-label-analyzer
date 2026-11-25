@@ -23,8 +23,10 @@ export default function LabelAnalyzer() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [meal, setMeal] = useState<MealResponse | null>(null);
+  const [mealPhoto, setMealPhoto] = useState<string | null>(null);
 
-  async function analyzeMeal(image: { data: string; mediaType: "image/jpeg" }) {
+  async function analyzeMeal(image: { data: string; mediaType: "image/jpeg"; dataUrl?: string }) {
+    setMealPhoto(image.dataUrl ?? null);
     setError(null);
     setLoading(true);
     try {
@@ -71,7 +73,7 @@ export default function LabelAnalyzer() {
     }
   }
 
-  async function analyzePhoto(image: { data: string; mediaType: "image/jpeg" }) {
+  async function analyzePhoto(image: { data: string; mediaType: "image/jpeg"; dataUrl?: string }) {
     setError(null);
     setLoading(true);
     try {
@@ -124,7 +126,7 @@ export default function LabelAnalyzer() {
   }
 
   if (meal) {
-    return <MealResult result={meal} onReset={reset} />;
+    return <MealResult result={meal} photo={mealPhoto} onReset={reset} />;
   }
 
   if (result) {

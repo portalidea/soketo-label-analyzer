@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 type Props = {
-  onSubmit: (image: { data: string; mediaType: "image/jpeg" }) => void;
+  onSubmit: (image: { data: string; mediaType: "image/jpeg"; dataUrl?: string }) => void;
   loading: boolean;
   hint?: string;
   submitLabel?: string;
@@ -56,7 +56,7 @@ export default function PhotoUpload({
 
   function submit() {
     if (!base64) return;
-    onSubmit({ data: base64, mediaType: "image/jpeg" });
+    onSubmit({ data: base64, mediaType: "image/jpeg", dataUrl: preview ?? undefined });
   }
 
   return (
@@ -81,9 +81,15 @@ export default function PhotoUpload({
       )}
 
       {preview && (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl bg-white shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="Anteprima foto" className="block w-full" />
+          {loading && (
+            <>
+              <div className="absolute inset-0 bg-brand-green/10" />
+              <div className="scan-line" aria-hidden />
+            </>
+          )}
         </div>
       )}
 
