@@ -26,14 +26,25 @@ export default function LabelAnalyzer() {
   const [meal, setMeal] = useState<MealResponse | null>(null);
   const [mealPhoto, setMealPhoto] = useState<string | null>(null);
 
-  async function analyzeMeal(image: { data: string; mediaType: "image/jpeg"; dataUrl?: string }) {
-    setMealPhoto(image.dataUrl ?? null);
+  const [mealImage, setMealImage] = useState<{ data: string; mediaType: "image/jpeg" } | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+
+  async function analyzeMeal(
+    image: { data: string; mediaType: "image/jpeg"; dataUrl?: string },
+    hint?: string,
+  ) {
+    if (image.dataUrl) setMealPhoto(image.dataUrl);
+    setMealImage({ data: image.data, mediaType: image.mediaType });
     setError(null);
     setLoading(true);
     try {
       // Un secondo tentativo automatico: la prima chiamata può scadere (rete lenta o
       // analisi lunga) e il browser restituisce solo "Load failed" / "Failed to fetch".
-      const body = JSON.stringify({ image: image.data, mediaType: image.mediaType });
+      const body = JSON.stringify({
+        image: image.data,
+        mediaType: image.mediaType,
+        hint: hint || undefined,
+      });
       let data: MealResponse | null = null;
       let lastError = "";
       for (let attempt = 0; attempt < 2 && !data; attempt++) {
@@ -152,7 +163,25 @@ export default function LabelAnalyzer() {
   }
 
   if (meal) {
-    return <MealResult result={meal} photo={mealPhoto} onReset={reset} />;
+    return (
+      <MealResult
+        key={JSON.stringify(meal).length + meal.dishName}
+        result={meal}
+        photo={mealPhoto}
+        onReset={reset}
+        recalculating={recalculating}
+        error={error}
+        onCorrect={
+          mealImage
+            ? async (hint: string) => {
+                setRecalculating(true);
+                await analyzeMeal(mealImage, hint);
+                setRecalculating(false);
+              }
+            : undefined
+        }
+      />
+    );
   }
 
   if (result) {
