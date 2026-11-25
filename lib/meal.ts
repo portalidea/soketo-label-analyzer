@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ANALYZE_MODEL } from "./anthropic";
+import { detectImageMediaType } from "./media-type";
 import type { MealItem, MealResponse } from "./meal-calc";
 
 export type { MealItem, MealResponse } from "./meal-calc";
@@ -58,7 +59,11 @@ export async function analyzeMealPhoto(input: {
         content: [
           {
             type: "image",
-            source: { type: "base64", media_type: input.mediaType, data: input.image },
+            source: {
+              type: "base64",
+              media_type: detectImageMediaType(input.image, input.mediaType),
+              data: input.image,
+            },
           },
           {
             type: "text",
