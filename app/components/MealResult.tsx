@@ -2,6 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { mealKetoVerdict, mealTotals, type MealItem, type MealResponse } from "@/lib/meal-calc";
+import {
+  findNamedSoketo,
+  findSoketoSwap,
+  SOKETO_SWAPS,
+  type SoketoSwap,
+} from "@/lib/soketo-catalog";
+
+/** Applica il prodotto SoKeto all'alimento (carb netti: fibre già escluse). */
+function applySwap(it: MealItem, s: SoketoSwap): MealItem {
+  return {
+    ...it,
+    name: s.name,
+    per100g: {
+      calories: s.per100g.calories,
+      carbs: s.per100g.netCarbs,
+      fiber: 0,
+      protein: s.per100g.protein,
+      fat: s.per100g.fat,
+    },
+    swap: { id: s.id, originalName: it.name, originalPer100g: it.per100g },
+  };
+}
+
+function undoSwap(it: MealItem): MealItem {
+  if (!it.swap) return it;
+  return { ...it, name: it.swap.originalName, per100g: it.swap.originalPer100g, swap: undefined };
+}
 
 type Props = {
   result: MealResponse;
@@ -35,9 +62,56 @@ export default function MealResult({
 }: Props) {
   const [hint, setHint] = useState("");
   // L'utente può correggere i grammi: i totali si ricalcolano subito.
-  const [items, setItems] = useState<MealItem[]>(result.items);
+  // Se l'AI (o la correzione dell'utente) dice già "SoKeto", valori presi dall'etichetta vera.
+  const [items, setItems] = useState<MealItem[]>(() =>
+    result.items.map((it) => {
+      const s = findNamedSoketo(it.name);
+      return s ? { ...applySwap(it, s), name: it.name } : it;
+    }),
+  );
   const totals = useMemo(() => mealTotals(items), [items]);
   const verdict = mealKetoVerdict(totals.netCarbs);
+
+  // Confronto: lo stesso piatto con i prodotti SoKeto al posto di pasta, pane, dolci…
+  const swappable = items
+    .map((it, idx) => ({ idx, s: it.swap ? null : findSoketoSwap(it.name) }))
+    .filter((x): x is { idx: number; s: SoketoSwap } => x.s !== null);
+  const withSoketo = useMemo(
+    () =>
+      mealTotals(
+        items.map((it, idx) => {
+          const hit = swappable.find((x) => x.idx === idx);
+          return hit ? applySwap(it, hit.s) : it;
+        }),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items],
+  );
+  const savings = Math.round((totals.netCarbs - withSoketo.netCarbs) * 10) / 10;
+  const swapProducts = Array.from(new Set(swappable.map((x) => x.s.id)))
+    .map((id) => SOKETO_SWAPS.find((s) => s.id === id))
+    .filter((s): s is SoketoSwap => Boolean(s));
+
+  function toggleSwap(idx: number) {
+    setItems((prev) =>
+      prev.map((it, i) => {
+        if (i !== idx) return it;
+        if (it.swap) return undoSwap(it);
+        const s = findSoketoSwap(it.name);
+        return s ? applySwap(it, s) : it;
+      }),
+    );
+  }
+
+  function swapAll() {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.swap) return it;
+        const s = findSoketoSwap(it.name);
+        return s ? applySwap(it, s) : it;
+      }),
+    );
+  }
 
   function setGrams(idx: number, value: string) {
     const g = Math.max(0, Math.min(2000, Math.round(Number(value.replace(",", ".")) || 0)));
@@ -113,6 +187,40 @@ export default function MealResult({
         <strong>{result.confidence}</strong>. Valori indicativi.
       </p>
 
+      {savings >= 3 && swapProducts.length > 0 && (
+        <div className="rounded-2xl bg-brand-green p-5 text-white shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wide text-white/80">Con SoKeto</p>
+          <p className="mt-1 text-base font-bold leading-snug">
+            Con {swapProducts.map((s) => s.name).join(" e ")} questo piatto avrebbe{" "}
+            <span className="text-brand-lime">{withSoketo.netCarbs} g</span> di carboidrati netti
+            invece di {totals.netCarbs} g.
+          </p>
+          <p className="mt-1 text-[11px] text-white/70">
+            Valori dalle etichette SoKeto; per pasta e riso stima sul peso da cotti.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={swapAll}
+              className="rounded-full bg-white px-4 py-2 text-xs font-bold text-brand-green"
+            >
+              L&apos;ho mangiato con SoKeto
+            </button>
+            {swapProducts.slice(0, 2).map((s) => (
+              <a
+                key={s.id}
+                href={s.url}
+                target="_blank"
+                rel="noopener"
+                className="rounded-full border border-white/60 px-4 py-2 text-xs font-bold text-white"
+              >
+                Scopri {s.name} →
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="text-sm font-bold uppercase tracking-wide text-brand-green">
           Cosa c&apos;è nel piatto
@@ -131,6 +239,19 @@ export default function MealResult({
                     {Math.round(net * 10) / 10} g carb netti ·{" "}
                     {Math.round(it.per100g.calories * (it.grams / 100))} kcal
                   </p>
+                  {(it.swap || findSoketoSwap(it.name)) && (
+                    <button
+                      type="button"
+                      onClick={() => toggleSwap(idx)}
+                      className={`mt-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                        it.swap
+                          ? "bg-brand-lime/15 text-brand-green"
+                          : "bg-brand-orange/15 text-orange-700"
+                      }`}
+                    >
+                      {it.swap ? `✓ SoKeto · torna a ${it.swap.originalName}` : "È SoKeto? Tocca qui"}
+                    </button>
+                  )}
                 </div>
                 <label className="flex items-center gap-1 text-sm">
                   <input
