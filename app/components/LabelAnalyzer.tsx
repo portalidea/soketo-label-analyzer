@@ -31,16 +31,41 @@ export default function LabelAnalyzer() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/meal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: image.data, mediaType: image.mediaType }),
-      });
-      const data = (await res.json()) as MealResponse | { error?: string };
-      if (!res.ok || "error" in data) {
-        throw new Error(("error" in data && data.error) || "Errore di analisi.");
+      // Un secondo tentativo automatico: la prima chiamata può scadere (rete lenta o
+      // analisi lunga) e il browser restituisce solo "Load failed" / "Failed to fetch".
+      const body = JSON.stringify({ image: image.data, mediaType: image.mediaType });
+      let data: MealResponse | null = null;
+      let lastError = "";
+      for (let attempt = 0; attempt < 2 && !data; attempt++) {
+        try {
+          const res = await fetch("/api/meal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+          const text = await res.text();
+          let json: unknown = null;
+          try {
+            json = JSON.parse(text);
+          } catch {
+            json = null;
+          }
+          if (res.ok && json && typeof json === "object" && !("error" in json)) {
+            data = json as MealResponse;
+          } else if (json && typeof json === "object" && "error" in json) {
+            lastError = String((json as { error?: string }).error || "");
+            if (res.status < 500) break; // errore della richiesta: inutile riprovare
+          } else {
+            lastError = `L'analisi non ha risposto in tempo (codice ${res.status}).`;
+          }
+        } catch {
+          lastError = "L'analisi ha impiegato troppo tempo o la connessione si è interrotta.";
+        }
       }
-      setMeal(data as MealResponse);
+      if (!data) {
+        throw new Error(`${lastError || "Errore di analisi."} Riprova tra poco.`);
+      }
+      setMeal(data);
     } catch (e) {
       emitError(e instanceof Error ? e.message : "Errore di rete.");
     } finally {

@@ -4,7 +4,9 @@ import type { MealItem, MealResponse } from "./meal-calc";
 
 export type { MealItem, MealResponse } from "./meal-calc";
 
-const MAX_TOKENS = 2048;
+const MAX_TOKENS = 1200;
+/** Modello per i piatti: configurabile da Netlify (MEAL_MODEL) per bilanciare velocità e precisione. */
+const MEAL_MODEL = process.env.MEAL_MODEL || ANALYZE_MODEL;
 
 const MEAL_PROMPT = `Sei un nutrizionista esperto di alimentazione italiana e chetogenica. Ricevi la foto di un piatto o di un pasto.
 
@@ -19,14 +21,14 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido (niente markdown, niente testo
   "items": [
     { "name": "string", "grams": number, "per100g": { "calories": number, "carbs": number, "fiber": number, "protein": number, "fat": number } }
   ],
-  "notes": ["string, max 3 note brevi su incertezze o ingredienti nascosti"],
+  "notes": ["string, max 2 note brevi su incertezze o ingredienti nascosti"],
   "ketoTip": "string, max 160 caratteri: un consiglio pratico per rendere il pasto più keto (es. sostituire pasta/pane con un'alternativa low carb)",
   "confidence": "alta" | "media" | "bassa"
 }
 
 Regole:
 - carbs = carboidrati totali, fiber = fibre, entrambi in grammi per 100 g.
-- Massimo 10 voci. Raggruppa elementi minori simili.
+- Massimo 8 voci. Raggruppa elementi minori simili. Risposta il più compatta possibile.
 - Se la foto non mostra cibo, restituisci items vuoto e dishName "Nessun piatto riconosciuto".
 - Non inventare precisione: "confidence" bassa se il piatto è poco visibile o molto composito.`;
 
@@ -47,7 +49,7 @@ export async function analyzeMealPhoto(input: {
   mediaType: "image/jpeg" | "image/png" | "image/webp";
 }): Promise<MealResponse> {
   const response = await getClient().messages.create({
-    model: ANALYZE_MODEL,
+    model: MEAL_MODEL,
     max_tokens: MAX_TOKENS,
     system: [{ type: "text", text: MEAL_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [

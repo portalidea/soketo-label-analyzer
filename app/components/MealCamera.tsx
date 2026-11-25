@@ -10,8 +10,8 @@ type Props = {
   loading: boolean;
 };
 
-const MAX_DIMENSION = 1200;
-const JPEG_QUALITY = 0.85;
+const MAX_DIMENSION = 1024;
+const JPEG_QUALITY = 0.8;
 /** Campionamento per capire se il telefono è fermo. */
 const SAMPLE_MS = 250;
 const SAMPLE_SIZE = 32;
@@ -121,9 +121,14 @@ export default function MealCamera({ onSubmit, loading }: Props) {
       setPhase("live");
       // Mezzo secondo per mettere a fuoco prima di iniziare a misurare la stabilità.
       setTimeout(watchStillness, 500);
-    } catch {
+    } catch (err) {
       stop();
-      setNotice("Non riesco ad aprire la fotocamera qui: scatta o carica la foto.");
+      const name = err instanceof Error ? err.name : "";
+      setNotice(
+        name === "NotAllowedError"
+          ? "Accesso alla fotocamera negato: abilitalo nelle impostazioni del browser, oppure scatta o carica la foto."
+          : `Non riesco ad aprire la fotocamera qui (${name || "errore"}): scatta o carica la foto.`,
+      );
       setPhase("fallback");
     }
   }
