@@ -7,6 +7,8 @@ export type MealItem = {
   /** Posizione approssimativa nella foto (% da sinistra / dall'alto), per le etichette sopra il cibo. */
   x?: number;
   y?: number;
+  /** Sostituito con un prodotto SoKeto: nome e valori originali per tornare indietro. */
+  swap?: { id: string; originalName: string; originalPer100g: MealItem["per100g"] };
   per100g: {
     calories: number;
     carbs: number;
