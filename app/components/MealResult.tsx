@@ -46,59 +46,60 @@ export default function MealResult({ result, photo, onReset }: Props) {
     );
   }
 
-  const placed = items
-    .map((it, idx) => ({ it, idx }))
-    .filter(({ it }) => typeof it.x === "number" && typeof it.y === "number" && it.grams > 0);
+  const summaryCard = (
+    <div
+      className="rounded-2xl bg-white p-5 shadow-sm"
+      style={{ borderTop: `4px solid ${toneBorder[verdict.tone]}` }}
+    >
+      <h2 className="text-xl font-bold leading-tight text-brand-dark">{result.dishName}</h2>
+      <span
+        className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${toneClass[verdict.tone]}`}
+      >
+        {verdict.label}
+      </span>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-center">
+        <Stat label="Carb netti" value={`${totals.netCarbs} g`} strong />
+        <Stat label="Calorie" value={`${totals.calories} kcal`} />
+        <Stat label="Proteine" value={`${totals.protein} g`} />
+        <Stat label="Grassi" value={`${totals.fat} g`} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {photo && (
+      {photo ? (
+        // Foto con mirino e i soli totali del piatto sopra (nome, giudizio keto, 4 valori).
         <div className="relative overflow-hidden rounded-2xl bg-black shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo} alt={result.dishName} className="block w-full opacity-90" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
-          {placed.map(({ it, idx }, n) => {
-            const net = Math.max(0, it.per100g.carbs - it.per100g.fiber) * (it.grams / 100);
-            const kcal = Math.round(it.per100g.calories * (it.grams / 100));
-            const left = Math.min(85, Math.max(15, it.x ?? 50));
-            return (
-              <div
-                key={`tag-${idx}`}
-                className="pop-in absolute flex flex-col items-center"
-                style={{ left: `${left}%`, top: `${it.y}%`, animationDelay: `${n * 0.15}s` }}
-              >
-                <span className="whitespace-nowrap rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-extrabold text-brand-green shadow-md ring-2 ring-brand-lime">
-                  {Math.round(net * 10) / 10} g carb · {kcal} kcal
-                </span>
-                <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-brand-lime ring-2 ring-white shadow" />
-              </div>
-            );
-          })}
+          <img src={photo} alt={result.dishName} className="block w-full" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/70" />
+          <Corners />
+          <div className="pop-in-fade absolute inset-x-0 top-0 p-4">
+            <h2 className="text-lg font-extrabold leading-tight text-white drop-shadow">
+              {result.dishName}
+            </h2>
+            <span
+              className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${toneClass[verdict.tone]} bg-white`}
+            >
+              {verdict.label}
+            </span>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 grid grid-cols-4 gap-1.5 p-3">
+            <PhotoStat label="Carb netti" value={`${totals.netCarbs}`} unit="g" strong delay={0} />
+            <PhotoStat label="Calorie" value={`${totals.calories}`} unit="kcal" delay={1} />
+            <PhotoStat label="Proteine" value={`${totals.protein}`} unit="g" delay={2} />
+            <PhotoStat label="Grassi" value={`${totals.fat}`} unit="g" delay={3} />
+          </div>
         </div>
+      ) : (
+        summaryCard
       )}
 
-      <div
-        className="rounded-2xl bg-white p-5 shadow-sm"
-        style={{ borderTop: `4px solid ${toneBorder[verdict.tone]}` }}
-      >
-        <h2 className="text-xl font-bold leading-tight text-brand-dark">{result.dishName}</h2>
-        <span
-          className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${toneClass[verdict.tone]}`}
-        >
-          {verdict.label}
-        </span>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <Stat label="Carb netti" value={`${totals.netCarbs} g`} strong />
-          <Stat label="Calorie" value={`${totals.calories} kcal`} />
-          <Stat label="Proteine" value={`${totals.protein} g`} />
-          <Stat label="Grassi" value={`${totals.fat} g`} />
-          <Stat label="Carb totali" value={`${totals.carbs} g`} />
-          <Stat label="Fibre" value={`${totals.fiber} g`} />
-        </div>
-        <p className="mt-3 text-[11px] text-brand-gray">
-          Affidabilità della stima: <strong>{result.confidence}</strong>. Valori indicativi.
-        </p>
-      </div>
+      <p className="px-1 text-[11px] text-brand-gray">
+        Carb totali {totals.carbs} g · Fibre {totals.fiber} g · Affidabilità della stima:{" "}
+        <strong>{result.confidence}</strong>. Valori indicativi.
+      </p>
 
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="text-sm font-bold uppercase tracking-wide text-brand-green">
@@ -184,5 +185,53 @@ function ResetButton({ onReset }: { onReset: () => void }) {
     >
       ↩ Analizza un altro piatto
     </button>
+  );
+}
+
+function PhotoStat({
+  label,
+  value,
+  unit,
+  strong,
+  delay,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  strong?: boolean;
+  delay: number;
+}) {
+  return (
+    <div
+      className={`pop-in-fade rounded-xl px-1 py-2 text-center shadow-lg backdrop-blur ${
+        strong ? "bg-brand-lime/95" : "bg-white/90"
+      }`}
+      style={{ animationDelay: `${0.15 + delay * 0.12}s` }}
+    >
+      <p className={`text-base font-extrabold leading-none ${strong ? "text-white" : "text-brand-dark"}`}>
+        {value}
+        <span className="ml-0.5 text-[10px] font-bold">{unit}</span>
+      </p>
+      <p
+        className={`mt-1 text-[9px] font-bold uppercase tracking-wide ${
+          strong ? "text-white/90" : "text-brand-gray"
+        }`}
+      >
+        {label}
+      </p>
+    </div>
+  );
+}
+
+/** Angoli del "mirino" sopra la foto. */
+function Corners() {
+  const c = "absolute h-7 w-7 border-brand-lime";
+  return (
+    <div className="pointer-events-none absolute inset-2" aria-hidden>
+      <span className={`${c} left-0 top-0 rounded-tl-xl border-l-4 border-t-4`} />
+      <span className={`${c} right-0 top-0 rounded-tr-xl border-r-4 border-t-4`} />
+      <span className={`${c} bottom-0 left-0 rounded-bl-xl border-b-4 border-l-4`} />
+      <span className={`${c} bottom-0 right-0 rounded-br-xl border-b-4 border-r-4`} />
+    </div>
   );
 }
