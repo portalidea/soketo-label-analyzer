@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AnalyzeResponse, NutritionValues } from "./types";
+import { detectImageMediaType } from "./media-type";
 
 export const ANALYZE_MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
@@ -101,7 +102,7 @@ export async function analyzePhoto(input: AnalyzePhotoInput): Promise<AnalyzeRes
       type: "image",
       source: {
         type: "base64",
-        media_type: input.mediaType,
+        media_type: detectImageMediaType(input.image, input.mediaType),
         data: input.image,
       },
     },
