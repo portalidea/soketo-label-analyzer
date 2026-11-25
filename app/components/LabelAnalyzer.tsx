@@ -9,6 +9,7 @@ import ManualForm from "./ManualForm";
 import PhotoUpload from "./PhotoUpload";
 import ResultCard from "./ResultCard";
 import MealResult from "./MealResult";
+import MealCamera from "./MealCamera";
 import type { MealResponse } from "@/lib/meal-calc";
 
 type Tab = "photo" | "meal" | "manual";
@@ -154,13 +155,7 @@ export default function LabelAnalyzer() {
         {tab === "photo" ? (
           <PhotoUpload onSubmit={analyzePhoto} loading={loading} />
         ) : tab === "meal" ? (
-          <PhotoUpload
-            key="meal"
-            onSubmit={analyzeMeal}
-            loading={loading}
-            hint="Fotografa il piatto dall'alto, tutto inquadrato"
-            submitLabel="🍽️ Analizza Piatto"
-          />
+          <MealCamera onSubmit={analyzeMeal} loading={loading} />
         ) : (
           <ManualForm onSubmit={analyzeManual} loading={loading} />
         )}
