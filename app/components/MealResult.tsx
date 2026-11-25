@@ -7,6 +7,10 @@ type Props = {
   result: MealResponse;
   photo?: string | null;
   onReset: () => void;
+  /** Ricalcola con la correzione scritta dall'utente (es. "è bresaola, non salame"). */
+  onCorrect?: (hint: string) => Promise<void>;
+  recalculating?: boolean;
+  error?: string | null;
 };
 
 const toneClass = {
@@ -21,7 +25,15 @@ const toneBorder = {
   bad: "#DC2626",
 } as const;
 
-export default function MealResult({ result, photo, onReset }: Props) {
+export default function MealResult({
+  result,
+  photo,
+  onReset,
+  onCorrect,
+  recalculating,
+  error,
+}: Props) {
+  const [hint, setHint] = useState("");
   // L'utente può correggere i grammi: i totali si ricalcolano subito.
   const [items, setItems] = useState<MealItem[]>(result.items);
   const totals = useMemo(() => mealTotals(items), [items]);
@@ -138,6 +150,36 @@ export default function MealResult({ result, photo, onReset }: Props) {
           })}
         </ul>
       </div>
+
+      {onCorrect && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-brand-green">
+            Qualcosa non torna?
+          </h3>
+          <p className="mt-1 text-xs text-brand-gray">
+            Scrivi cosa c&apos;è davvero nel piatto e ricalcolo i valori. Es. &quot;è bresaola, non
+            salame&quot; oppure &quot;spaghetti SoKeto&quot;.
+          </p>
+          <textarea
+            value={hint}
+            onChange={(e) => setHint(e.target.value.slice(0, 300))}
+            rows={2}
+            placeholder="Es. bresaola e mozzarella da 125 g"
+            className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            disabled={recalculating || hint.trim().length < 3}
+            onClick={() => void onCorrect(hint.trim())}
+            className="mt-2 w-full rounded-full bg-brand-green px-5 py-3 text-sm font-bold uppercase tracking-wide text-white shadow transition active:scale-[.98] disabled:opacity-50"
+          >
+            {recalculating ? "Ricalcolo in corso…" : "🔄 Correggi e ricalcola"}
+          </button>
+          {error && !recalculating && (
+            <p className="mt-2 text-xs font-semibold text-red-700">{error}</p>
+          )}
+        </div>
+      )}
 
       {(result.ketoTip || result.notes.length > 0) && (
         <div className="space-y-2 rounded-2xl bg-white p-5 shadow-sm">

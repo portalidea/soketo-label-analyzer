@@ -27,6 +27,11 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido (niente markdown, niente testo
   "confidence": "alta" | "media" | "bassa"
 }
 
+Attenzione agli alimenti che si somigliano: distinguili dai dettagli visibili.
+- Salumi: bresaola = rosso scuro uniforme, magra, fette sottili senza puntini di grasso; salame = puntini bianchi di grasso e pepe; prosciutto crudo = rosa con bordo di grasso; speck = più scuro con bordo affumicato.
+- Formaggi freschi: mozzarella (liscia, lucida), burrata (con interno cremoso), ricotta (granulosa).
+- Se sei incerto tra due alimenti scegli il più probabile e indica l'alternativa in "notes".
+
 Regole:
 - carbs = carboidrati totali, fiber = fibre, entrambi in grammi per 100 g.
 - Massimo 8 voci. Raggruppa elementi minori simili. Risposta il più compatta possibile.
@@ -48,7 +53,10 @@ function getClient(): Anthropic {
 export async function analyzeMealPhoto(input: {
   image: string;
   mediaType: "image/jpeg" | "image/png" | "image/webp";
+  /** Correzione scritta dall'utente (es. "è bresaola, non salame"): prevale sulla foto. */
+  hint?: string;
 }): Promise<MealResponse> {
+  const hint = (input.hint || "").trim().slice(0, 300);
   const response = await getClient().messages.create({
     model: MEAL_MODEL,
     max_tokens: MAX_TOKENS,
@@ -67,7 +75,9 @@ export async function analyzeMealPhoto(input: {
           },
           {
             type: "text",
-            text: "Analizza questo piatto e restituisci SOLO il JSON richiesto.",
+            text: hint
+              ? `Analizza questo piatto e restituisci SOLO il JSON richiesto.\n\nCORREZIONE DELL'UTENTE (vale più della foto, applicala a nomi, alimenti e valori): ${hint}`
+              : "Analizza questo piatto e restituisci SOLO il JSON richiesto.",
           },
         ],
       },

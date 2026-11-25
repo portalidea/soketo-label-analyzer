@@ -11,6 +11,7 @@ const MAX_BASE64_BYTES = Math.ceil(5 * 1024 * 1024 * 1.4);
 const MealRequestSchema = z.object({
   image: z.string().min(1).max(MAX_BASE64_BYTES, "Immagine troppo grande (max 5MB)"),
   mediaType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  hint: z.string().max(300).optional(),
 });
 
 export async function POST(req: Request) {
