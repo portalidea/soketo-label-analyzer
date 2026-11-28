@@ -27,6 +27,8 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido (niente markdown, niente testo
   "confidence": "alta" | "media" | "bassa"
 }
 
+Nei panini (hamburger, cheeseburger, sandwich) separa sempre il pane dal ripieno: chiama il pane "Panino per hamburger" (o "Pane del sandwich") e la carne "Hamburger di manzo" (o il nome del ripieno).
+
 Attenzione agli alimenti che si somigliano: distinguili dai dettagli visibili.
 - Salumi: bresaola = rosso scuro uniforme, magra, fette sottili senza puntini di grasso; salame = puntini bianchi di grasso e pepe; prosciutto crudo = rosa con bordo di grasso; speck = più scuro con bordo affumicato.
 - Formaggi freschi: mozzarella (liscia, lucida), burrata (con interno cremoso), ricotta (granulosa).
