@@ -69,10 +69,21 @@ export const SOKETO_SWAPS: SoketoSwap[] = [
     per100g: { calories: 161.0, netCarbs: 4.0, protein: 14.0, fat: 9.0 },
   },
   {
+    id: "panino",
+    name: "Panini Keto SoKeto",
+    url: "https://soketo.it/products/pane-chetogenico-ai-semi-di-sesamo-2-x-60gr-copia",
+    // Panino al sesamo per hamburger (60 g): solo il pane, non la carne dell'hamburger
+    match: /panin|pane (per|da|del|dell'|dello)? ?(hamburger|burger)|burger bun|\bbun\b|pane burger|sandwich/i,
+    cookedFactor: 1.0,
+    // Valori dalla scheda "Hamburger Cheto panino" (per 100 g: 381 kcal, 4,5 g carboidrati);
+    // la scheda del prodotto attivo "Pane Chetogenico ai Semi di Sesamo" è vuota su Shopify.
+    per100g: { calories: 381, netCarbs: 4.5, protein: 12, fat: 29 },
+  },
+  {
     id: "pane",
     name: "Pan Bauletto SoKeto",
     url: "https://soketo.it/products/pane-chetogenico-bauletto",
-    match: /\bpane\b|pan carr|bauletto|toast|bruschett|crostin|panino|rosetta|baguette|focaccia/i,
+    match: /\bpane\b|pan carr|bauletto|toast|bruschett|crostin|baguette|focaccia/i,
     cookedFactor: 1.0,
     // Etichetta Shopify (per 100 g: 7,7 g carboidrati); valori sotto per 100 g come venduto
     per100g: { calories: 346.0, netCarbs: 7.7, protein: 12.0, fat: 23.0 },
